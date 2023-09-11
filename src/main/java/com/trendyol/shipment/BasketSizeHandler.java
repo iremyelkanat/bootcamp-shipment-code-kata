@@ -8,7 +8,6 @@ public class BasketSizeHandler {
 
     private final int BASKET_SHIPMENT_THRESHOLD = 3;
     private final List<Product> products;
-    private TreeMap<ShipmentSize, Integer> productSizeCounts;
 
     public BasketSizeHandler(Basket basket) {
         products = basket.getProducts();
@@ -20,13 +19,9 @@ public class BasketSizeHandler {
             throw new RuntimeException("Basket is empty");
         }
 
-        findProductSizeCounts();
+        Map<ShipmentSize, Integer> productSizeCounts = findProductSizeCounts();
 
-        if (doesBasketContainMoreThanThresholdAndAllXLarge()) {
-            return ShipmentSize.X_LARGE;
-        }
-
-        Optional<ShipmentSize> sizeOccuringMoreThanThreshold = getSizeOccuringMoreThanThreshold();
+        Optional<ShipmentSize> sizeOccuringMoreThanThreshold = getSizeOccuringMoreThanThreshold(productSizeCounts);
 
         if (sizeOccuringMoreThanThreshold.isPresent()) {
             return sizeOccuringMoreThanThreshold.get().getLargerSize();
@@ -35,26 +30,23 @@ public class BasketSizeHandler {
         }
     }
 
-    private void findProductSizeCounts() {
-        productSizeCounts = products.stream()
-                .sorted(Comparator.comparing(Product::getSize).reversed())
-                .collect(groupingBy(Product::getSize, () -> new TreeMap<>(Collections.reverseOrder()), collectingAndThen(counting(), Long::intValue)));
+    private Map<ShipmentSize, Integer> findProductSizeCounts() {
+        return products.stream()
+                .collect(groupingBy(Product::getSize, collectingAndThen(counting(), Long::intValue)));
     }
 
     private ShipmentSize getLargestShipmentSizeInBasket() {
-        return productSizeCounts.keySet().stream().findFirst().get();
+        return products.stream()
+                .sorted((firstProduct, secondProduct) -> secondProduct.getSize().compareTo(firstProduct.getSize()))
+                .findFirst()
+                .get().getSize();
     }
 
-    private Optional<ShipmentSize> getSizeOccuringMoreThanThreshold() {
+    private Optional<ShipmentSize> getSizeOccuringMoreThanThreshold(Map<ShipmentSize, Integer> productSizeCounts) {
         return productSizeCounts.entrySet().stream()
                 .filter(sizeCountEntry -> sizeCountEntry.getValue() >= BASKET_SHIPMENT_THRESHOLD)
                 .map(Map.Entry::getKey)
                 .findFirst();
-    }
-
-    private boolean doesBasketContainMoreThanThresholdAndAllXLarge() {
-        int xLargeSizeCount = productSizeCounts.getOrDefault(ShipmentSize.X_LARGE, 0);
-        return xLargeSizeCount >= BASKET_SHIPMENT_THRESHOLD && productSizeCounts.entrySet().size() == 1;
     }
 
 }
