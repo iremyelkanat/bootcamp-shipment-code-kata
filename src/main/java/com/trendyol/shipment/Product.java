@@ -17,4 +17,9 @@ public class Product {
     public void setSize(ShipmentSize size) {
         this.size = size;
     }
+
+    @Override
+    public String toString() {
+        return size.name();
+    }
 }
